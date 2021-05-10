@@ -1,8 +1,8 @@
 #!/bin/bash
 
-minikube-version=v1.18.1
+minikube-version="v1.18.1"
  
-JOB_NAME_SUFFIX=alpine next
+JOB_NAME_SUFFIX="alpine next"
  
 #https://github.com/che-incubator/setup-minikube-action/blob/main/src/minikube-setup-helper.ts
 MINIKUBE_OWN_PATH="/usr/local/sbin/minikube"
@@ -14,9 +14,9 @@ if [[ -n "${MINIKUBE_VERSION}" ]]; then
   MINIKUBE_VERSION="${MINIKUBE_VERSION_DEFAULT}"
 fi
 
-MINIKUBE_LINK="https://github.com/kubernetes/minikube/releases/download/${MINIKUBE_VERSION}/minikube-linux-amd64";
+MINIKUBE_LINK="https://github.com/kubernetes/minikube/releases/download/${MINIKUBE_VERSION}/minikube-linux-amd64"
 echo "Downloading minikube $MINIKUBE_VERSION..."
-sudo curl $MINIKUBE_LINK -o $MINIKUBE_OWN_PATH
+sudo curl $MINIKUBE_LINK -Lo $MINIKUBE_OWN_PATH
 
 echo "Make minikube executable"
 sudo -E chmod 755 $MINIKUBE_OWN_PATH
