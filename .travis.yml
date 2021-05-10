@@ -1,0 +1,9 @@
+arch: amd64
+os: linux
+dist: bionic
+
+before_script: chmod +x ./travis/*.sh
+
+script:
+  - ./travis/setup-minikube.sh
+  - kubectl get nodes
