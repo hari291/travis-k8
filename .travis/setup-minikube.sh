@@ -1,16 +1,15 @@
 #!/bin/bash
 
+JOB_NAME_SUFFIX="alpine next"
+
 # install kubectl
 KUBECTL_VERSION="v1.17.17"
 KUBECTL_OWN_PATH="/usr/local/bin/kubectl"
-KUBECTL_LINK="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+KUBECTL_LINK="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/$TRAVIS_CPU_ARCH/kubectl"
 sudo curl $KUBECTL_LINK -Lo $KUBECTL_OWN_PATH
 sudo chmod +x $KUBECTL_OWN_PATH
+echo "kubectl version"
 kubectl version --client
-
-minikube-version="v1.18.1"
- 
-JOB_NAME_SUFFIX="alpine next"
  
 #https://github.com/che-incubator/setup-minikube-action/blob/main/src/minikube-setup-helper.ts
 MINIKUBE_OWN_PATH="/usr/local/sbin/minikube"
@@ -22,7 +21,7 @@ if [[ -n "${MINIKUBE_VERSION}" ]]; then
   MINIKUBE_VERSION="${MINIKUBE_VERSION_DEFAULT}"
 fi
 
-MINIKUBE_LINK="https://github.com/kubernetes/minikube/releases/download/${MINIKUBE_VERSION}/minikube-linux-amd64"
+MINIKUBE_LINK="https://github.com/kubernetes/minikube/releases/download/${MINIKUBE_VERSION}/minikube-linux-$TRAVIS_CPU_ARCH"
 echo "Downloading minikube $MINIKUBE_VERSION..."
 sudo curl $MINIKUBE_LINK -Lo $MINIKUBE_OWN_PATH
 
