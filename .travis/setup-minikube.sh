@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# install kubectl
+KUBECTL_VERSION="v1.17.17"
+KUBECTL_OWN_PATH="/usr/local/bin/kubectl"
+KUBECTL_LINK="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+sudo curl $KUBECTL_LINK -Lo $KUBECTL_OWN_PATH
+sudo chmod +x $KUBECTL_OWN_PATH
+kubectl version --client
+
 minikube-version="v1.18.1"
  
 JOB_NAME_SUFFIX="alpine next"
