@@ -34,5 +34,6 @@ echo "Minikube installed at $MINIKUBE_OWN_PATH"
 CHANGE_MINIKUBE_NONE_USER="true"
 MINIKUBE_WANTUPDATENOTIFICATION="false"
  
+#MEMORY=6500
 echo "Starting minikube..."
-minikube start --vm-driver=docker --addons=ingress --cpus 2 --memory 6500
+minikube start --vm-driver=docker --addons=ingress --cpus 2 --memory 2000
