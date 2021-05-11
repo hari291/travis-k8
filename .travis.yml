@@ -12,6 +12,7 @@ before_script: npm install -g typescript
 script:
   - git clone https://github.com/che-incubator/setup-minikube-action.git
   - cd setup-minikube-action
+  - npm install 
   - tsc
   - ls -l
   - node lib/index.js
