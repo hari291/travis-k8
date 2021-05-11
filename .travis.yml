@@ -13,5 +13,5 @@ script:
   - cd setup-minikube-action
   - npm install
   - tsc
-  - ls
-  - node lib/index.js
+  - ls -l lib/
+  - sudo -E node lib/index.js
