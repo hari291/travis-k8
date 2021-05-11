@@ -28,4 +28,5 @@ script:
   - cd che-deploy-action
   - npm install
   - env 'INPUT_CHECTL-CHANNEL=next' node lib/index.js
+  - env
   - cd ..
