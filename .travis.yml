@@ -12,4 +12,5 @@ script:
   - git clone https://github.com/che-incubator/setup-minikube-action.git
   - cd setup-minikube-action
   - npm install
-  - node lib/index.js minikube-version="v1.18.1"
+  - export RUNNER_TEMP=/tmp
+  - env 'INPUT_MINIKUBE-VERSION=v1.18.1' node lib/index.js
