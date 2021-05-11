@@ -11,4 +11,4 @@ script:
   - git clone https://github.com/che-incubator/setup-minikube-action.git
   - cd setup-minikube-action
   - npm install 
-  - sudo node lib/index.js
+  - node lib/index.js
