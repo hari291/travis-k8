@@ -12,3 +12,4 @@ script:
   - df -h
   - ./.travis/setup-minikube.sh
   - kubectl get nodes
+  - ./.travis/che-deploy.sh
