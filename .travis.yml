@@ -8,6 +8,13 @@ language: node_js
 node_js: 12
 
 script:
+  - KUBECTL_VERSION="v1.20.2"
+  - KUBECTL_OWN_PATH="/usr/local/bin/kubectl"
+  - KUBECTL_LINK="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/$TRAVIS_CPU_ARCH/kubectl"
+  - sudo curl $KUBECTL_LINK -Lo $KUBECTL_OWN_PATH
+  - sudo chmod +x $KUBECTL_OWN_PATH
+  - echo "kubectl version"
+  - kubectl version --client
   - npm install -g typescript
   - export RUNNER_TEMP=/tmp
   - export SKIP_TEST=true
