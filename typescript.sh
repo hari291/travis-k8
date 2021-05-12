@@ -1,5 +1,12 @@
 #!/bin/bash
 
+git clone https://github.com/eclipse-che/che-theia.git
+cd che-theia
+docker pull quay.io/eclipse/che-theia-dev:next
+docker tag quay.io/eclipse/che-theia-dev:next eclipse/che-theia-dev:next
+./build.sh --root-yarn-opts:--ignore-scripts --dockerfile:Dockerfile.alpine
+
+
 KUBECTL_VERSION="v1.20.2"
 KUBECTL_OWN_PATH="/usr/local/bin/kubectl"
 KUBECTL_LINK="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/$TRAVIS_CPU_ARCH/kubectl"
