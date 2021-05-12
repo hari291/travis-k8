@@ -12,7 +12,7 @@ npm install -g typescript
 export RUNNER_TEMP=/tmp
 export SKIP_TEST=true
 export SKIP_FORMAT=true
-export NODE_ENV=production
+#export NODE_ENV=production
 export GITHUB_ENV=/tmp/github_env
 touch $GITHUB_ENV
 
