@@ -1,4 +1,4 @@
-!/bin/bash
+#!/bin/bash
 
 KUBECTL_VERSION="v1.20.2"
 KUBECTL_OWN_PATH="/usr/local/bin/kubectl"
