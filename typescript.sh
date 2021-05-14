@@ -1,11 +1,21 @@
 #!/bin/bash
 
+#functions
+function ExtractVariable()
+{
+	local VAR=$1
+	BEGIN=$VAR'<<_GitHubActionsFileCommandDelimeter_'
+	END='_GitHubActionsFileCommandDelimeter_'
+	echo `sed -n '/'"$BEGIN"'/,/'"$END"'/{/'"$BEGIN"'/!{/'"$END"'/!p}}' $GITHUB_ENV`
+}
+
+#build
+echo "build..."
 git clone https://github.com/eclipse-che/che-theia.git
 cd che-theia
 docker pull quay.io/eclipse/che-theia-dev:next
 docker tag quay.io/eclipse/che-theia-dev:next eclipse/che-theia-dev:next
-./build.sh --root-yarn-opts:--ignore-scripts --dockerfile:Dockerfile.alpine
-
+./build.sh --root-yarn-opts:--ignore-scripts --dockerfile:Dockerfile.$DIST
 
 KUBECTL_VERSION="v1.20.2"
 KUBECTL_OWN_PATH="/usr/local/bin/kubectl"
@@ -17,32 +27,27 @@ kubectl version --client
 
 npm install -g typescript
 export RUNNER_TEMP=/tmp
-export SKIP_TEST=true
-export SKIP_FORMAT=true
-#export NODE_ENV=production
 export GITHUB_ENV=/tmp/github_env
 touch $GITHUB_ENV
 
-function ExtractVariable()
-{
-	local VAR=$1
-	BEGIN=$VAR'<<_GitHubActionsFileCommandDelimeter_'
-	END='_GitHubActionsFileCommandDelimeter_'
-	echo `sed -n '/'"$BEGIN"'/,/'"$END"'/{/'"$BEGIN"'/!{/'"$END"'/!p}}' $GITHUB_ENV`
-}
-
+# Start minikube
+echo "Start minikube..."
 git clone https://github.com/che-incubator/setup-minikube-action.git
 cd setup-minikube-action
-npm install
-env 'INPUT_MINIKUBE-VERSION=v1.18.1' node lib/index.js
+SKIP_TEST=true SKIP_FORMAT=true SKIP_LINT=true npm install
+env 'INPUT_MINIKUBE-VERSION='$MINIKUBE_VERSION node lib/index.js
 cd ..
 
+# Deploy Eclipse Che
+echo "Deploy Eclipse Che..."
+# modified code to store github action output in a file
 git clone https://github.com/Siddhesh-Ghadi/che-deploy-action.git
 cd che-deploy-action
-npm install
-env 'INPUT_CHECTL-CHANNEL=next' node lib/index.js
+SKIP_TEST=true SKIP_FORMAT=true SKIP_LINT=true npm install
+env 'INPUT_CHECTL-CHANNEL='$CHECTL_CHANNEL node lib/index.js
 cd ..
 
+#devfile-che-theia
 echo "devfile-che-theia"
 cat <<EOF | kubectl apply -f -
 apiVersion: apps/v1
@@ -112,6 +117,7 @@ sed -i "s|id: eclipse/che-theia/next|alias: che-theia\n    reference: http://cus
 kubectl cp che-theia-meta.yaml $DEPLOY_POD_NAME:/usr/local/apache2/htdocs/
 kubectl cp devfile.yaml $DEPLOY_POD_NAME:/usr/local/apache2/htdocs/
 echo "::set-output name=devfile-url::http://custom-devfile.$(minikube ip).nip.io/devfile.yaml"
+#export DEVFILE_URL var as github action output devfile-url cannot be used in bash
 export DEVFILE_URL="http://custom-devfile.$(minikube ip).nip.io/devfile.yaml"
 echo "devfile yaml content from http://custom-devfile.$(minikube ip).nip.io/devfile.yaml is:"
 curl http://custom-devfile.$(minikube ip).nip.io/devfile.yaml
@@ -126,9 +132,11 @@ eval $(minikube docker-env)
 docker load --input=che-theia-images.tar
 rm che-theia-images.tar
 
+#Run Happy Path test
+echo "Run Happy Path test"
 git clone https://github.com/che-incubator/happy-path-tests-action.git
 cd happy-path-tests-action
-npm install
-export CHE_URL=$(ExtractVariable CHE_URL)  
-env 'INPUT_CHE-URL='$CHE_URL 'INPUT_DEVFILE-URL='$DEVFILE_URL 'INPUT_E2E-VERSION=next' node lib/index.js
-cd ..
+SKIP_TEST=true SKIP_FORMAT=true SKIP_LINT=true npm install
+# output vars are stored in $GITHUB_ENV file. ExtractVariable <var-name> will parse the file for <var-name>
+CHE_URL=$(ExtractVariable CHE_URL)  
+env 'INPUT_CHE-URL='$CHE_URL 'INPUT_DEVFILE-URL='$DEVFILE_URL 'INPUT_E2E-VERSION='$CHECTL_CHANNEL node lib/index.js
