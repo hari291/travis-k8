@@ -6,7 +6,7 @@ dist: focal
 service: docker
 language: node_js
 node_js: 12
-
+env: DIST=alpine CHECTL_CHANNEL=next MINIKUBE_VERSION=v1.18.1
 script:
   - chmod +x typescript.sh
   - ./typescript.sh
