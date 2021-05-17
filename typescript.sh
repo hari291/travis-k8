@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 git clone https://github.com/eclipse-che/che-theia.git
 cd che-theia
 docker pull quay.io/eclipse/che-theia-dev:next
