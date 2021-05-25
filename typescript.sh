@@ -128,9 +128,47 @@ eval $(minikube docker-env)
 docker load --input=che-theia-images.tar
 rm che-theia-images.tar
 
-git clone https://github.com/che-incubator/happy-path-tests-action.git
-cd happy-path-tests-action
-npm install
-export CHE_URL=$(ExtractVariable CHE_URL)  
-env 'INPUT_CHE-URL='$CHE_URL 'INPUT_DEVFILE-URL='$DEVFILE_URL 'INPUT_E2E-VERSION=next' node lib/index.js
-cd ..
+#git clone https://github.com/che-incubator/happy-path-tests-action.git
+#cd happy-path-tests-action
+#npm install
+#export CHE_URL=$(ExtractVariable CHE_URL)  
+#env 'INPUT_CHE-URL='$CHE_URL 'INPUT_DEVFILE-URL='$DEVFILE_URL 'INPUT_E2E-VERSION=next' node lib/index.js
+#cd ..
+
+#-----------------------------
+# happy-path-tests-action
+# functions called: https://github.com/che-incubator/happy-path-tests-action/blob/main/src/launch-happy-path.ts#L33
+#
+#-----------------------------
+#Eclipse Che [clone]...
+echo 'Cloning eclipse che for happy path tests'
+git clone --depth 1 https://github.com/eclipse/che
+
+#Images [pull]...
+echo 'Setup docker-env of minikube'
+# todo: minikube docker-env : https://github.com/che-incubator/happy-path-tests-action/blob/main/src/images-helper.ts#L108
+export DOCKER_TLS_VERIFY=1
+export DOCKER_HOST=tcp://192.168.49.2:2376
+export DOCKER_CERT_PATH=$HOME/.minikube/certs
+export MINIKUBE_ACTIVE_DOCKERD=minikube
+
+#Workspace [start]...
+#https://github.com/che-incubator/happy-path-tests-action/blob/main/src/workspace-helper.ts#L42
+echo 'Create and start workspace...'
+devfileUrl=$DEVFILE_URL
+echo "DevFile Path selected to ${devfileUrl}"
+workspaceStartEndProcess=$(chectl workspace:create --start --devfile=${devfileUrl})
+# todo: https://github.com/che-incubator/happy-path-tests-action/blob/main/src/workspace-helper.ts#L53
+
+
+#Happy Path [start]...
+#https://github.com/che-incubator/happy-path-tests-action/blob/main/src/happy-path-helper.ts#L23
+cheUrl=${CHE_URL}
+echo "Happy path tests will use Eclipse Che URL: ${cheUrl}"
+e2eFolder="${PWD}/che/tests/e2e"
+params="--shm-size=1g --net=host --ipc=host -p 5920:5920 -e VIDEO_RECORDING=false -e TS_SELENIUM_HEADLESS=false -e TS_SELENIUM_DEFAULT_TIMEOUT=300000 -e TS_SELENIUM_LOAD_PAGE_TIMEOUT=240000 -e TS_SELENIUM_WORKSPACE_STATUS_POLLING=20000 -e TS_SELENIUM_PREVIEW_WIDGET_DEFAULT_TIMEOUT=20000 -e TS_SELENIUM_BASE_URL=${cheUrl}-e TS_SELENIUM_LOG_LEVEL=TRACE -e TS_SELENIUM_MULTIUSER=true -e TS_SELENIUM_USERNAME=admin -e TS_SELENIUM_PASSWORD=admin -e NODE_TLS_REJECT_UNAUTHORIZED=0 -v ${e2eFolder}:/tmp/e2e quay.io/eclipse/che-e2e:${E2E_VERSION}"
+echo "Launch docker command ${params}"
+unset DOCKER_HOST
+unset DOCKER_TLS_VERIFY
+env>env_file
+docker run --env-file=env_file ${params}
