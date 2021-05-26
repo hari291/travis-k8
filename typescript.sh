@@ -146,11 +146,14 @@ git clone --depth 1 https://github.com/eclipse/che
 
 #Images [pull]...
 echo 'Setup docker-env of minikube'
-# todo: minikube docker-env : https://github.com/che-incubator/happy-path-tests-action/blob/main/src/images-helper.ts#L108
-export DOCKER_TLS_VERIFY=1
-export DOCKER_HOST=tcp://192.168.49.2:2376
-export DOCKER_CERT_PATH=$HOME/.minikube/certs
-export MINIKUBE_ACTIVE_DOCKERD=minikube
+minikube docker-env
+source <(minikube docker-env)
+devfileUrl=$DEVFILE_URL
+#TODO: reading content from file
+#https://github.com/che-incubator/happy-path-tests-action/blob/main/src/images-helper.ts#L51
+images=""
+devfileContent=$(curl $devfileUrl)
+
 
 #Workspace [start]...
 #https://github.com/che-incubator/happy-path-tests-action/blob/main/src/workspace-helper.ts#L42
