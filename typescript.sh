@@ -222,7 +222,7 @@ echo 'Create and start workspace...'
 devfileUrl=$DEVFILE_URL
 echo "DevFile Path selected to ${devfileUrl}"
 workspaceStartEndProcess="$(chectl workspace:create --start --devfile=${devfileUrl})"
-workspaceUrlExec="$(sed -n 's/.*(https:\/\/.*).*/\1/p' "${workspaceStartEndProcess}")"
+workspaceUrlExec="$(echo "${workspaceStartEndProcess}"|sed -n 's/.*\(https:\/\/.*\).*/\1/p' )"
 if [ -z "$workspaceUrlExec" ]
 then
   echo "Unable to find workspace URL in stdout of workspace:create process. Found ${workspaceStartEndProcess}"
@@ -230,7 +230,7 @@ then
 fi
 $WORKSPACE_URL="${workspaceUrlExec}"
 echo "Detect as workspace URL the value ${workspaceUrl}"
-sleep 1m
+while [[ $(kubectl get pods -n admin-che -l app=che.workspace_id -o 'jsonpath={..status.conditions[?(@.type=="Running")].status}') != "True" ]]; do echo "waiting for workspace" && sleep 1; done
 # todo: https://github.com/che-incubator/happy-path-tests-action/blob/main/src/workspace-helper.ts#L53
 
 #Happy Path [start]...
