@@ -17,10 +17,14 @@ sudo chmod +x $KUBECTL_OWN_PATH
 echo "kubectl version"
 kubectl version --client
 
+
+
+
 npm install -g typescript
 export RUNNER_TEMP=/tmp
 export SKIP_TEST=true
 export SKIP_FORMAT=true
+export SKIP_LINT=true
 #export NODE_ENV=production
 export GITHUB_ENV=/tmp/github_env
 touch $GITHUB_ENV
@@ -33,11 +37,37 @@ function ExtractVariable()
 	echo `sed -n '/'"$BEGIN"'/,/'"$END"'/{/'"$BEGIN"'/!{/'"$END"'/!p}}' $GITHUB_ENV`
 }
 
-git clone https://github.com/che-incubator/setup-minikube-action.git
-cd setup-minikube-action
-npm install
-env 'INPUT_MINIKUBE-VERSION=v1.18.1' node lib/index.js
-cd ..
+#git clone https://github.com/che-incubator/setup-minikube-action.git
+#cd setup-minikube-action
+#npm install
+#env 'INPUT_MINIKUBE-VERSION=v1.18.1' node lib/index.js
+#cd ..
+#https://github.com/che-incubator/setup-minikube-action/blob/main/src/minikube-setup-helper.ts
+MINIKUBE_OWN_PATH="/usr/local/sbin/minikube"
+MINIKUBE_VERSION="v1.18.1"
+MINIKUBE_VERSION_DEFAULT="v1.18.1"
+
+if [[ -n "${MINIKUBE_VERSION}" ]]; then
+  echo "Minikube version not specified. Will use pre-installed minikube version"
+  MINIKUBE_VERSION="${MINIKUBE_VERSION_DEFAULT}"
+fi
+
+MINIKUBE_LINK="https://github.com/kubernetes/minikube/releases/download/${MINIKUBE_VERSION}/minikube-linux-amd64"
+echo "Downloading minikube $MINIKUBE_VERSION..."
+sudo curl $MINIKUBE_LINK -Lo $MINIKUBE_OWN_PATH
+
+echo "Make minikube executable"
+sudo -E chmod 755 $MINIKUBE_OWN_PATH
+
+echo "Minikube installed at $MINIKUBE_OWN_PATH"
+
+#https://github.com/che-incubator/setup-minikube-action/blob/main/src/minikube-start-helper.ts
+CHANGE_MINIKUBE_NONE_USER="true"
+MINIKUBE_WANTUPDATENOTIFICATION="false"
+ 
+#MEMORY=6500
+echo "Starting minikube..."
+minikube start --vm-driver=docker --addons=ingress --cpus 2 --memory 6500
 
 git clone https://github.com/Siddhesh-Ghadi/che-deploy-action.git
 cd che-deploy-action
@@ -128,6 +158,7 @@ eval $(minikube docker-env)
 docker load --input=che-theia-images.tar
 rm che-theia-images.tar
 
+export CHE_URL=$(ExtractVariable CHE_URL)  
 #git clone https://github.com/che-incubator/happy-path-tests-action.git
 #cd happy-path-tests-action
 #npm install
@@ -151,18 +182,56 @@ source <(minikube docker-env)
 devfileUrl=$DEVFILE_URL
 #TODO: reading content from file
 #https://github.com/che-incubator/happy-path-tests-action/blob/main/src/images-helper.ts#L51
-images=""
-devfileContent=$(curl $devfileUrl)
+IMAGES="/tmp/images"
+touch $IMAGES
+devfileContent=$(curl -s $devfileUrl)
+echo "${devfileContent}"|sed -n 's/image: [>-]*\n*\(.*\)/\1/p'|tee -a $IMAGES
 
+mId=$(echo "${devfileContent}"|sed -n 's/id: \(.*\)/\1/p')
+echo "${mId}" | while read componentId; do
+    if [[ ! -z $componentId ]]
+    then
+      pluginIdContent=$(curl -s https://che-plugin-registry-main.surge.sh/v3/plugins/${componentId}/meta.yaml)
+      tmp=$(echo "${pluginIdContent}"|sed -n 's/image: [>-]*\n*\(.*\)/\1/p')
+      echo "$tmp" >> $IMAGES
+    fi    
+done
+
+mReference=$(echo "${devfileContent}"|sed -n 's/reference: \(.*\)/\1/p')
+echo "${mReference}" | while read reference; do
+    if [[ ! -z $reference ]]
+    then
+      content=$(curl -s $reference)
+      tmp=$(echo "${content}"|sed -n 's/image: [>-]*\n*\(.*\)/\1/p')
+      echo "$tmp" >> $IMAGES
+    fi    
+done
+
+#skip images that are prefixed with 'local-'
+sed -i '/local-/d' $IMAGES
+#remove extra space, - & '
+sed -i "s/^[ \t]*//" $IMAGES
+sed -i 's/^-//g' $IMAGES
+sed -i "s/'//g" $IMAGES
+
+cat $IMAGES | xargs -n1 docker pull
 
 #Workspace [start]...
 #https://github.com/che-incubator/happy-path-tests-action/blob/main/src/workspace-helper.ts#L42
 echo 'Create and start workspace...'
 devfileUrl=$DEVFILE_URL
 echo "DevFile Path selected to ${devfileUrl}"
-workspaceStartEndProcess=$(chectl workspace:create --start --devfile=${devfileUrl})
+workspaceStartEndProcess="$(chectl workspace:create --start --devfile=${devfileUrl})"
+workspaceUrlExec="$(sed -n 's/.*(https:\/\/.*).*/\1/p' "${workspaceStartEndProcess}")"
+if [ -z "$workspaceUrlExec" ]
+then
+  echo "Unable to find workspace URL in stdout of workspace:create process. Found ${workspaceStartEndProcess}"
+  exit 1
+fi
+$WORKSPACE_URL="${workspaceUrlExec}"
+echo "Detect as workspace URL the value ${workspaceUrl}"
+sleep 1m
 # todo: https://github.com/che-incubator/happy-path-tests-action/blob/main/src/workspace-helper.ts#L53
-
 
 #Happy Path [start]...
 #https://github.com/che-incubator/happy-path-tests-action/blob/main/src/happy-path-helper.ts#L23
