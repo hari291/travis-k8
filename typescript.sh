@@ -17,9 +17,6 @@ sudo chmod +x $KUBECTL_OWN_PATH
 echo "kubectl version"
 kubectl version --client
 
-
-
-
 npm install -g typescript
 export RUNNER_TEMP=/tmp
 export SKIP_TEST=true
@@ -69,11 +66,76 @@ MINIKUBE_WANTUPDATENOTIFICATION="false"
 echo "Starting minikube..."
 minikube start --vm-driver=docker --addons=ingress --cpus 2 --memory 6500
 
-git clone https://github.com/Siddhesh-Ghadi/che-deploy-action.git
-cd che-deploy-action
-npm install
-env 'INPUT_CHECTL-CHANNEL=next' node lib/index.js
-cd ..
+#git clone https://github.com/Siddhesh-Ghadi/che-deploy-action.git
+#cd che-deploy-action
+#npm install
+#env 'INPUT_CHECTL-CHANNEL=next' node lib/index.js
+#cd ..
+
+#https://github.com/che-incubator/che-deploy-action/blob/main/src/chectl-helper.ts
+echo "Chectl [download]..."
+CHECTL_SCRIPT_PATH="/tmp/chectl-install.sh"
+echo "Downloading chectl installer..."
+curl -sLo $CHECTL_SCRIPT_PATH https://www.eclipse.org/che/chectl/
+echo "Making it executable..."
+chmod 755 $CHECTL_SCRIPT_PATH
+
+echo "Chectl [configure]..."
+echo "configuring chectl defaults..."
+if [[ -z $HOME ]]; then
+  echo "No HOME environment variable found"
+  exit 1
+fi
+chectlConfigFolderPath="$HOME/.config/chectl"
+mkdir -p $chectlConfigFolderPath
+chectlConfigPath="$chectlConfigFolderPath/config.json"
+# disable telemetry
+echo "{ 'segment.telemetry': 'off' }" > $chectlConfigPath
+
+echo "Chectl [install]..."
+channel="${CHANNEL:-next}"
+if [[ $channel != 'next' && $channel != 'stable' ]]
+then
+  echo "Invalid channel set for chectl: should be stable or next"
+  exit 1
+fi
+echo "Installing chectl [channel=${channel}]...";
+$CHECTL_SCRIPT_PATH --channel=${channel}
+
+#PLUGIN_REGISTRY_CUSTOM_IMAGE="[server/]imageName:imageTag"
+#DEV_FILE_REGISTRY_CUSTOM_IMAGE="[server/]imageName:imageTag"
+#CHE_SERVER_CUSTOM_IMAGE="[server/]imageName:imageTag"
+
+CUSTOM_RESOURCE_PATH='/tmp/custom-resource-patch.yaml'
+touch CUSTOM_RESOURCE_PATH
+
+echo 'spec:
+  auth:
+    updateAdminPassword: false
+  server:
+    customCheProperties:
+      CHE_WORKSPACE_SIDECAR_IMAGE__PULL__POLICY: IfNotPresent
+      CHE_WORKSPACE_PLUGIN__BROKER_PULL__POLICY: IfNotPresent
+      CHE_INFRA_KUBERNETES_PVC_JOBS_IMAGE_PULL__POLICY: IfNotPresent' > $CUSTOM_RESOURCE_PATH
+
+chectl server:deploy --listr-renderer=verbose --platform=minikube --che-operator-cr-patch-yaml=${CUSTOM_RESOURCE_PATH} --chenamespace=eclipse-che
+
+
+echo "Eclipse Che [sets che-url]..."
+getCheIngressProcess=$(kubectl get ingress che -n eclipse-che -o jsonpath='{.spec.rules[0].host}')
+cheHostName=$(echo "$getCheIngressProcess"|sed "s/'//g")
+cheUrl="https://${cheHostName}"
+CHE_URL="$cheUrl"
+
+echo "Eclipse Che [sets che-token]..."
+getIngressProcess=$(kubectl get ingress/keycloak -n eclipse-che -o jsonpath='{.spec.rules[0].host}')
+keycloakBaseUrl=$(echo "$getIngressProcess"|sed "s/'//g")
+keycloakUrl="https://${keycloakBaseUrl}"
+curl -k -X POST $keycloakUrl -H 'Content-Type: application/x-www-form-urlencoded' -d username=admin -d password=admin -d grant_type=password -d client_id=che-public
+
+echo "Eclipse Che [login]..."
+echo "Performing auth:Login..."
+chectl auth:login -u admin -p admin --chenamespace=eclipse-che
 
 echo "devfile-che-theia"
 cat <<EOF | kubectl apply -f -
@@ -158,7 +220,6 @@ eval $(minikube docker-env)
 docker load --input=che-theia-images.tar
 rm che-theia-images.tar
 
-export CHE_URL=$(ExtractVariable CHE_URL)  
 #git clone https://github.com/che-incubator/happy-path-tests-action.git
 #cd happy-path-tests-action
 #npm install
@@ -229,18 +290,19 @@ then
   exit 1
 fi
 $WORKSPACE_URL="${workspaceUrlExec}"
-echo "Detect as workspace URL the value ${workspaceUrl}"
-while [[ $(kubectl get pods -n admin-che -l app=che.workspace_id -o 'jsonpath={..status.conditions[?(@.type=="Running")].status}') != "True" ]]; do echo "waiting for workspace" && sleep 1; done
+echo "Detect as workspace URL the value ${WORKSPACE_URL}"
+#while [[ $(kubectl get pods -n admin-che -l app=che.workspace_id -o 'jsonpath={..status.conditions[?(@.type=="Running")].status}') != "True" ]]; do echo "waiting for workspace" && sleep 1; done
 # todo: https://github.com/che-incubator/happy-path-tests-action/blob/main/src/workspace-helper.ts#L53
+sleep 20s
 
 #Happy Path [start]...
 #https://github.com/che-incubator/happy-path-tests-action/blob/main/src/happy-path-helper.ts#L23
 cheUrl=${CHE_URL}
+E2E_VERSION=latest
 echo "Happy path tests will use Eclipse Che URL: ${cheUrl}"
 e2eFolder="${PWD}/che/tests/e2e"
-params="--shm-size=1g --net=host --ipc=host -p 5920:5920 -e VIDEO_RECORDING=false -e TS_SELENIUM_HEADLESS=false -e TS_SELENIUM_DEFAULT_TIMEOUT=300000 -e TS_SELENIUM_LOAD_PAGE_TIMEOUT=240000 -e TS_SELENIUM_WORKSPACE_STATUS_POLLING=20000 -e TS_SELENIUM_PREVIEW_WIDGET_DEFAULT_TIMEOUT=20000 -e TS_SELENIUM_BASE_URL=${cheUrl}-e TS_SELENIUM_LOG_LEVEL=TRACE -e TS_SELENIUM_MULTIUSER=true -e TS_SELENIUM_USERNAME=admin -e TS_SELENIUM_PASSWORD=admin -e NODE_TLS_REJECT_UNAUTHORIZED=0 -v ${e2eFolder}:/tmp/e2e quay.io/eclipse/che-e2e:${E2E_VERSION}"
-echo "Launch docker command ${params}"
+echo "Launch docker command"
 unset DOCKER_HOST
 unset DOCKER_TLS_VERIFY
 env>env_file
-docker run --env-file=env_file ${params}
+docker run --env-file=env_file --shm-size=1g --net=host --ipc=host -p 5920:5920 -e VIDEO_RECORDING=false -e TS_SELENIUM_HEADLESS=false -e TS_SELENIUM_DEFAULT_TIMEOUT=300000 -e TS_SELENIUM_LOAD_PAGE_TIMEOUT=240000 -e TS_SELENIUM_WORKSPACE_STATUS_POLLING=20000 -e TS_SELENIUM_PREVIEW_WIDGET_DEFAULT_TIMEOUT=20000 -e TS_SELENIUM_BASE_URL=${cheUrl} -e TS_SELENIUM_LOG_LEVEL=TRACE -e TS_SELENIUM_MULTIUSER=true -e TS_SELENIUM_USERNAME=admin -e TS_SELENIUM_PASSWORD=admin -e NODE_TLS_REJECT_UNAUTHORIZED=0 -v ${e2eFolder}:/tmp/e2e quay.io/eclipse/che-e2e:${E2E_VERSION}
