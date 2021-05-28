@@ -12,19 +12,17 @@ before_script: chmod +x .travis/*.sh
 
 script:
   - |
-    KUBECTL_VERSION="v1.20.2"
-    KUBECTL_OWN_PATH="/usr/local/bin/kubectl"
-    KUBECTL_LINK="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/$TRAVIS_CPU_ARCH/kubectl"
-    sudo curl $KUBECTL_LINK -Lo $KUBECTL_OWN_PATH
-    sudo chmod +x $KUBECTL_OWN_PATH
-    echo "kubectl version"
-    kubectl version --client
-    npm install -g typescript
-    export RUNNER_TEMP=/tmp
-    export SKIP_TEST=true
-    export SKIP_FORMAT=true
-    export SKIP_LINT=true
-    #export NODE_ENV=production
-    export GITHUB_ENV=/tmp/github_env
-    touch $GITHUB_ENV
-    env 'INPUT_MINIKUBE-VERSION=v1.18.1' node lib/index-minikube.js
+    set +e
+    VERSION=e102e89946e3a47b27
+    EXISTING_TAG=e102e89946e3a47b27
+    if [[ -n ${EXISTING_TAG} ]]; then
+      if [[ ${RECREATE_TAGS} == "true" ]]; then
+        printf "[INFO] Removing tag for ${VERSION} version. New tag will be recreated during release."
+        git push origin :$VERSION
+      else
+        printf "[ERROR] Cannot proceed with release - tag ${EXISTING_TAG} already exists."
+        exit 1
+      fi
+    else
+      printf "[INFO] No existing tags detected for $VERSION"
+    fi
