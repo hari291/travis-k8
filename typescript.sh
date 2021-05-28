@@ -34,108 +34,12 @@ function ExtractVariable()
 	echo `sed -n '/'"$BEGIN"'/,/'"$END"'/{/'"$BEGIN"'/!{/'"$END"'/!p}}' $GITHUB_ENV`
 }
 
-#git clone https://github.com/che-incubator/setup-minikube-action.git
-#cd setup-minikube-action
-#npm install
-#env 'INPUT_MINIKUBE-VERSION=v1.18.1' node lib/index.js
-#cd ..
-#https://github.com/che-incubator/setup-minikube-action/blob/main/src/minikube-setup-helper.ts
-MINIKUBE_OWN_PATH="/usr/local/sbin/minikube"
-MINIKUBE_VERSION="v1.18.1"
-MINIKUBE_VERSION_DEFAULT="v1.18.1"
-
-if [[ -n "${MINIKUBE_VERSION}" ]]; then
-  echo "Minikube version not specified. Will use pre-installed minikube version"
-  MINIKUBE_VERSION="${MINIKUBE_VERSION_DEFAULT}"
-fi
-
-MINIKUBE_LINK="https://github.com/kubernetes/minikube/releases/download/${MINIKUBE_VERSION}/minikube-linux-amd64"
-echo "Downloading minikube $MINIKUBE_VERSION..."
-sudo curl $MINIKUBE_LINK -Lo $MINIKUBE_OWN_PATH
-
-echo "Make minikube executable"
-sudo -E chmod 755 $MINIKUBE_OWN_PATH
-
-echo "Minikube installed at $MINIKUBE_OWN_PATH"
-
-#https://github.com/che-incubator/setup-minikube-action/blob/main/src/minikube-start-helper.ts
-CHANGE_MINIKUBE_NONE_USER="true"
-MINIKUBE_WANTUPDATENOTIFICATION="false"
- 
-#MEMORY=6500
-echo "Starting minikube..."
-minikube start --vm-driver=docker --addons=ingress --cpus 2 --memory 6500
-
-#git clone https://github.com/Siddhesh-Ghadi/che-deploy-action.git
-#cd che-deploy-action
-#npm install
-#env 'INPUT_CHECTL-CHANNEL=next' node lib/index.js
-#cd ..
-
-#https://github.com/che-incubator/che-deploy-action/blob/main/src/chectl-helper.ts
-echo "Chectl [download]..."
-CHECTL_SCRIPT_PATH="/tmp/chectl-install.sh"
-echo "Downloading chectl installer..."
-curl -sLo $CHECTL_SCRIPT_PATH https://www.eclipse.org/che/chectl/
-echo "Making it executable..."
-chmod 755 $CHECTL_SCRIPT_PATH
-
-echo "Chectl [configure]..."
-echo "configuring chectl defaults..."
-if [[ -z $HOME ]]; then
-  echo "No HOME environment variable found"
-  exit 1
-fi
-chectlConfigFolderPath="$HOME/.config/chectl"
-mkdir -p $chectlConfigFolderPath
-chectlConfigPath="$chectlConfigFolderPath/config.json"
-# disable telemetry
-echo "{ 'segment.telemetry': 'off' }" > $chectlConfigPath
-
-echo "Chectl [install]..."
-channel="${CHANNEL:-next}"
-if [[ $channel != 'next' && $channel != 'stable' ]]
-then
-  echo "Invalid channel set for chectl: should be stable or next"
-  exit 1
-fi
-echo "Installing chectl [channel=${channel}]...";
-$CHECTL_SCRIPT_PATH --channel=${channel}
-
-#PLUGIN_REGISTRY_CUSTOM_IMAGE="[server/]imageName:imageTag"
-#DEV_FILE_REGISTRY_CUSTOM_IMAGE="[server/]imageName:imageTag"
-#CHE_SERVER_CUSTOM_IMAGE="[server/]imageName:imageTag"
-
-CUSTOM_RESOURCE_PATH='/tmp/custom-resource-patch.yaml'
-touch CUSTOM_RESOURCE_PATH
-
-echo 'spec:
-  auth:
-    updateAdminPassword: false
-  server:
-    customCheProperties:
-      CHE_WORKSPACE_SIDECAR_IMAGE__PULL__POLICY: IfNotPresent
-      CHE_WORKSPACE_PLUGIN__BROKER_PULL__POLICY: IfNotPresent
-      CHE_INFRA_KUBERNETES_PVC_JOBS_IMAGE_PULL__POLICY: IfNotPresent' > $CUSTOM_RESOURCE_PATH
-
-chectl server:deploy --listr-renderer=verbose --platform=minikube --che-operator-cr-patch-yaml=${CUSTOM_RESOURCE_PATH} --chenamespace=eclipse-che
+env 'INPUT_MINIKUBE-VERSION=v1.18.1' node lib/index-minikube.js
 
 
-echo "Eclipse Che [sets che-url]..."
-getCheIngressProcess=$(kubectl get ingress che -n eclipse-che -o jsonpath='{.spec.rules[0].host}')
-cheHostName=$(echo "$getCheIngressProcess"|sed "s/'//g")
-cheUrl="https://${cheHostName}"
-CHE_URL="$cheUrl"
+env 'INPUT_CHECTL-CHANNEL=next' node lib/index-deploy.js
 
-echo "Eclipse Che [sets che-token]..."
-getIngressProcess=$(kubectl get ingress/keycloak -n eclipse-che -o jsonpath='{.spec.rules[0].host}')
-keycloakBaseUrl=$(echo "$getIngressProcess"|sed "s/'//g")
-keycloakUrl="https://${keycloakBaseUrl}"
-curl -k -X POST $keycloakUrl -H 'Content-Type: application/x-www-form-urlencoded' -d username=admin -d password=admin -d grant_type=password -d client_id=che-public
 
-echo "Eclipse Che [login]..."
-echo "Performing auth:Login..."
-chectl auth:login -u admin -p admin --chenamespace=eclipse-che
 
 echo "devfile-che-theia"
 cat <<EOF | kubectl apply -f -
