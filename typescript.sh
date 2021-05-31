@@ -26,7 +26,7 @@ function ExtractVariable()
 	echo `sed -n '/'"$BEGIN"'/,/'"$END"'/{/'"$BEGIN"'/!{/'"$END"'/!p}}' $GITHUB_ENV`
 }
 
-git clone https://github.com/che-incubator/setup-minikube-action.git
+git clone https://github.com/Siddhesh-Ghadi/setup-minikube-action.git
 cd setup-minikube-action
 npm install
 #env 'INPUT_MINIKUBE-VERSION=v1.18.1' node lib/index.js
