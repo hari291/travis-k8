@@ -30,7 +30,7 @@ function ExtractVariable()
 git clone https://github.com/Siddhesh-Ghadi/setup-minikube-action.git
 cd setup-minikube-action
 npm install
-export MINIKUBE_VERSION=v1.18.2
+export MINIKUBE_VERSION=v1.18.1
 #env 'INPUT_MINIKUBE-VERSION=v1.18.1' node lib/index.js
 node lib/index.js
 #node lib/index.js
