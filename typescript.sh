@@ -17,7 +17,8 @@ export SKIP_FORMAT=true
 #export NODE_ENV=production
 export GITHUB_ENV=/tmp/github_env
 touch $GITHUB_ENV
-
+export ACTION_OUTPUT=/tmp/test
+touch $ACTION_OUTPUT
 function ExtractVariable()
 {
 	local VAR=$1
@@ -29,10 +30,10 @@ function ExtractVariable()
 git clone https://github.com/Siddhesh-Ghadi/setup-minikube-action.git
 cd setup-minikube-action
 npm install
-#env 'INPUT_MINIKUBE-VERSION=v1.18.1' node lib/index.js
-export MINIKUBE_VERSION=v1.18.1
-eval node lib/index.js
+export MINIKUBE_VERSION=v1.18.2
+env 'INPUT_MINIKUBE-VERSION=v1.18.1' node lib/index.js
+node lib/index.js
 #node lib/index.js
-env
-cd ..
-
+cat $ACTION_OUTPUT
+source $ACTION_OUTPUT
+echo "$TEST"
