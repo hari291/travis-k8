@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -x
+set -e
 
 KUBECTL_VERSION="v1.20.2"
 KUBECTL_OWN_PATH="/usr/local/bin/kubectl"
