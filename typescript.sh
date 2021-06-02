@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -x
+#set -x
 
 git clone https://github.com/eclipse-che/che-theia.git
 cd che-theia
@@ -21,29 +21,26 @@ npm install -g typescript
 export RUNNER_TEMP=/tmp
 export SKIP_TEST=true
 export SKIP_FORMAT=true
+export SKIP_LINT=true
 #export NODE_ENV=production
-export GITHUB_ENV=/tmp/github_env
-touch $GITHUB_ENV
+export ACTION_OUTPUT=/tmp/output
+touch $ACTION_OUTPUT
 
-function ExtractVariable()
-{
-	local VAR=$1
-	BEGIN=$VAR'<<_GitHubActionsFileCommandDelimeter_'
-	END='_GitHubActionsFileCommandDelimeter_'
-	echo `sed -n '/'"$BEGIN"'/,/'"$END"'/{/'"$BEGIN"'/!{/'"$END"'/!p}}' $GITHUB_ENV`
-}
-
-git clone https://github.com/che-incubator/setup-minikube-action.git
+git clone https://github.com/Siddhesh-Ghadi/setup-minikube-action.git
 cd setup-minikube-action
 npm install
-env 'INPUT_MINIKUBE-VERSION=v1.18.1' node lib/index.js
+export MINIKUBE_VERSION=v1.18.1 
+node lib/index.js
 cd ..
 
 git clone https://github.com/Siddhesh-Ghadi/che-deploy-action.git
 cd che-deploy-action
 npm install
-env 'INPUT_CHECTL-CHANNEL=next' node lib/index.js
+export CHECTL_CHANNEL=next
+node lib/index.js
 cd ..
+cat $ACTION_OUTPUT
+source $ACTION_OUTPUT
 
 echo "devfile-che-theia"
 cat <<EOF | kubectl apply -f -
@@ -128,9 +125,9 @@ eval $(minikube docker-env)
 docker load --input=che-theia-images.tar
 rm che-theia-images.tar
 
-git clone https://github.com/che-incubator/happy-path-tests-action.git
+git clone https://github.com/Siddhesh-Ghadi/happy-path-tests-action.git
 cd happy-path-tests-action
-npm install
-export CHE_URL=$(ExtractVariable CHE_URL)  
-env 'INPUT_CHE-URL='$CHE_URL 'INPUT_DEVFILE-URL='$DEVFILE_URL 'INPUT_E2E-VERSION=next' node lib/index.js
-cd ..
+npm install 
+export E2E_VERSION=next
+node lib/index.js
+
