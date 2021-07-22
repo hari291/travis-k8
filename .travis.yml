@@ -1,9 +1,9 @@
 arch: 
   - ppc64le
+  - s390x
   
 os: linux
-dist: focal
-service: docker
+dist: bionic
 
 script:
   - free -h
